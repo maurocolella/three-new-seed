@@ -12,6 +12,7 @@
     cubeMesh,
     pyramidMesh,
     wirePyramidMesh,
+    pointPyramidMesh,
     light,
     mouse,
     raycaster,
@@ -92,31 +93,43 @@
 
     const material = new THREE.MeshStandardMaterial({
       color: 0x222225, // 0x555558,
-      metalness: 0.05
+      metalness: 0
     });
 
-    const lineMaterial = new THREE.MeshBasicMaterial( {
+    const lineMaterial = new THREE.MeshBasicMaterial({
       color: 0x272726,
       wireframeLinewidth: 20,
       wireframe: true,
     });
 
+    const pointMaterial = new THREE.PointsMaterial({
+      color: 0x444446,
+      size: 0.5
+    });
+
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
     wirePyramidMesh = new THREE.Mesh(pyramidGeometry, lineMaterial);
+    pointPyramidMesh = new THREE.Points(pyramidGeometry, pointMaterial);
 
     cubeMesh.position.set(0,0,0);
     cubeMesh.rotation.set(0.6,-0.3,0);
-    pyramidMesh.position.set(0,0,0);
-    wirePyramidMesh.position.set(0,0,0);
-    wirePyramidMesh.scale.set(1.05, 1.05, 1.05);
 
+    pyramidMesh.position.set(0,0,0);
     pyramidMesh.visible = false;
+
+    wirePyramidMesh.position.set(0,0,0);
+    wirePyramidMesh.scale.set(1.1, 1.1, 1.1);
     wirePyramidMesh.visible = false;
+
+    pointPyramidMesh.position.set(0,0,0);
+    pointPyramidMesh.scale.set(1.1, 1.1, 1.1);
+    pointPyramidMesh.visible = false;
 
     scene.add(cubeMesh);
     scene.add(pyramidMesh);
     scene.add(wirePyramidMesh);
+    scene.add(pointPyramidMesh);
   }
 
   // ********************** Animation *********************
@@ -182,9 +195,30 @@
           wirePyramidMesh.scale,
           1.5,
           {
-            x: 3.675,
-            y: 3.675,
-            z: 3.675 /* ,
+            x: 3.85,
+            y: 3.85,
+            z: 3.85 /* ,
+            ease: Power4.easeIn */
+          },
+          0
+        );
+
+        // Animate point prism
+        (new TimelineLite()).to(
+          pointPyramidMesh.rotation,
+          1.2,
+          {
+            x: Math.PI * 6,
+            y: -Math.PI * 8.4,
+            z: Math.PI * 6
+          }
+        ).to(
+          pointPyramidMesh.scale,
+          1.5,
+          {
+            x: 3.85,
+            y: 3.85,
+            z: 3.85 /* ,
             ease: Power4.easeIn */
           },
           0
@@ -192,10 +226,12 @@
           () => {
             pyramidMesh.visible = true;
             wirePyramidMesh.visible = true;
+            pointPyramidMesh.visible = true;
             cubeMesh.visible = false;
             controls.enabled = true;
           },
         0.5);
+
 
         break;
       default:
