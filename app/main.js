@@ -61,9 +61,7 @@
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enabled = false;
-
-    // controls.minPolarAngle = 0; // radians
-    // controls.maxPolarAngle = - (Math.PI + halfPI); // radians
+    controls.rotateSpeed = 0.2;
 
     // Remove default OrbitControls event listeners
     controls.dispose();
@@ -131,7 +129,7 @@
           1.2,
           {
             x: Math.PI * 6,
-            y: -Math.PI * 6,
+            y: -Math.PI * 8.4,
             z: Math.PI * 6
           }
         );
