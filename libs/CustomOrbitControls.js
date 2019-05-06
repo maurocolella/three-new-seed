@@ -451,7 +451,7 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 	}
 
-	function handleMouseMoveRotate( event ) {
+	this.handleMouseMoveRotate = function ( event ) {
 
 		//console.log( 'handleMouseMoveRotate' );
 

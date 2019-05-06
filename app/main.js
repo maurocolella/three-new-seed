@@ -14,7 +14,8 @@
     light,
     mouse,
     raycaster,
-    key;
+    key,
+    halfPI = Math.PI/2;
 
   // Shaders
   let bloomPass,
@@ -23,7 +24,7 @@
 
   // Extension
   THREE.FancyTetrahedronGeometry = function ( radius, detail ) {
-      var vertices = [ 0,  0,  0,   - 1, - 1,  1,   - 2,  1, - 1,    3, - 2, - 1];
+      var vertices = [ 0,  0,  0,   - 1, - 1,  1,   - 2,  1, - 1,    2.5, - 2, - 1];
       var indices = [ 2,  1,  0,    0,  3,  2,  1,  3,  0,    2,  3,  1];
       THREE.PolyhedronGeometry.call( this, vertices, indices, radius, detail );
   };
@@ -32,6 +33,8 @@
   function getShader(shaderId) {
     return document.getElementById(shaderId).textContent;
   }
+
+  // ********************** Initialization ****************
 
   // Initialize pipeline
   function init() {
@@ -51,7 +54,7 @@
       1,
       10000
     );
-    camera.position.set(20, 20, 20);
+    camera.position.set(0, 0, 40);
 
     // controls
     controls = new THREE.OrbitControls(camera);
@@ -59,16 +62,23 @@
     controls.enableZoom = false;
     controls.enabled = false;
 
+    // controls.minPolarAngle = 0; // radians
+    // controls.maxPolarAngle = - (Math.PI + halfPI); // radians
+
+    // Remove default OrbitControls event listeners
+    controls.dispose();
+    controls.update();
+
     // picking
     mouse = new THREE.Vector2();
     raycaster = new THREE.Raycaster();
 
     // ambient light
-    scene.add(new THREE.AmbientLight(0x333336));
+    scene.add(new THREE.AmbientLight(0x444446));
 
     // directional light
     light = new THREE.DirectionalLight(0x9090a2);
-    light.position.set(20, 20, 30);
+    light.position.copy(camera.position);
     scene.add(light);
 
     initGeometry();
@@ -85,14 +95,21 @@
       color: 0x222225, // 0x555558,
       metalness: 0.05
     });
+
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
+
     cubeMesh.position.set(0,0,0);
+    cubeMesh.rotation.set(0.6,-0.3,0);
     pyramidMesh.position.set(0,0,0);
+
     pyramidMesh.visible = false;
+
     scene.add(cubeMesh);
     scene.add(pyramidMesh);
   }
+
+  // ********************** Animation *********************
 
   function animate() {
     const time = performance.now() * 0.0001;
@@ -148,9 +165,12 @@
     }
 
     chromaticAberrationPass.uniforms["time"].value = Math.cos(time*10);
+    light.position.copy(camera.position);
     requestAnimationFrame(animate);
     composer.render(time);
   }
+
+  // ********************** Postprocessing ****************
 
   // Add postprocessing composer
   function addComposer() {
@@ -194,6 +214,8 @@
     chromaticAberrationPass.renderToScreen = true;
   }
 
+  // ********************** Events / Picking **************
+
   // Handle resize
   function onResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -217,6 +239,11 @@
   // Handle mouse movement/picking
   function onMouseMove(event) {
     event.preventDefault();
+    if (controls.enabled) {
+      controls.handleMouseMoveRotate(event);
+    }
+
+    // Object picking
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
