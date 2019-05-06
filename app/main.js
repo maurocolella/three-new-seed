@@ -11,7 +11,8 @@
     mesh,
     light,
     mouse,
-    raycaster;
+    raycaster,
+    key;
 
   let bloomPass, chromaticAberration, chromaticAberrationPass;
 
@@ -65,8 +66,35 @@
     addComposer();
   }
 
+
   function animate() {
     const time = performance.now() * 0.0001;
+
+    switch(key) {
+      case 'toPrism':
+        TweenLite.to(
+          mesh.rotation,
+          2,
+          {
+            x: Math.PI * 3,
+            y: -Math.PI * 0.25,
+            z: Math.PI * 2
+          }
+        );
+        TweenLite.to(
+          mesh.scale,
+          1,
+          {
+            x: 0.4,
+            y: 0.4,
+            z: 0.4,
+          }
+        );
+        setTimeout(() => { mesh.visible = false; }, 1000);
+        break;
+      default:
+        break;
+    }
 
     chromaticAberrationPass.uniforms["time"].value = Math.cos(time*10);
     requestAnimationFrame(animate);
@@ -158,7 +186,7 @@
       0.85
     );
     bloomPass.threshold = 0;
-    bloomPass.strength = 0.4;
+    bloomPass.strength = 0.6;
     bloomPass.radius = 0;
 
     composer.addPass(renderPass);
@@ -181,20 +209,25 @@
 
   function onMouseMove(event) {
     event.preventDefault();
-
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+  }
+
+  function onMouseDown(even) {
+    event.preventDefault();
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(scene.children, false);
 
     if (intersects.length > 0) {
-        console.log('object is selected!');
+        console.log('object clicked');
+        key = 'toPrism';
     }
   }
 
   window.addEventListener('resize', onResize, false);
   document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('mousedown', onMouseDown, false);
 
   init();
   animate();
