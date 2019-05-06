@@ -8,14 +8,26 @@
     scene,
     camera,
     controls,
-    mesh,
+    cubeMesh,
+    pyramidMesh,
     light,
     mouse,
     raycaster,
     key;
 
-  let bloomPass, chromaticAberration, chromaticAberrationPass;
+  let bloomPass,
+    chromaticAberration,
+    chromaticAberrationPass;
 
+  THREE.FancyTetrahedronGeometry = function ( radius, detail ) {
+      var vertices = [ 0,  0,  0,   - 1, - 1,  1,   - 2,  1, - 1,    3, - 2, - 1];
+      var indices = [ 2,  1,  0,    0,  3,  2,  1,  3,  0,    2,  3,  1];
+      THREE.PolyhedronGeometry.call( this, vertices, indices, radius, detail );
+  };
+  THREE.FancyTetrahedronGeometry.prototype = Object.create( THREE.Geometry.prototype );
+
+
+  // Initialize the pipeline
   function init() {
     // renderer
     renderer = new THREE.WebGLRenderer();
@@ -24,7 +36,7 @@
 
     // scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0x18191d );
+    scene.background = new THREE.Color( 0x1b1c1f /*0x18191d */ );
 
     // camera
     camera = new THREE.PerspectiveCamera(
@@ -33,7 +45,7 @@
       1,
       10000
     );
-    camera.position.set(30, 30, 30);
+    camera.position.set(20, 20, 20);
 
     // controls
     controls = new THREE.OrbitControls(camera);
@@ -46,26 +58,35 @@
     raycaster = new THREE.Raycaster();
 
     // ambient light
-    scene.add(new THREE.AmbientLight(0x222226));
+    scene.add(new THREE.AmbientLight(0x333336));
 
     // directional light
-    light = new THREE.DirectionalLight(0x9090a2, 0.5);
-    light.position.set(2, 40, 4);
+    light = new THREE.DirectionalLight(0x9090a2);
+    light.position.set(20, 20, 30);
     scene.add(light);
 
-    const geometry = new THREE.BoxGeometry(10, 10, 10);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x99999d,
-      metalness: 0.2
-    });
-    mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0,0,0);
-    scene.add(mesh);
+    initGeometry();
 
     document.body.appendChild(renderer.domElement);
     addComposer();
   }
 
+  // Initialize geometry
+  function initGeometry() {
+    const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
+    const pyramidGeometry = new THREE.FancyTetrahedronGeometry(4, 0);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x222225, // 0x555558,
+      metalness: 0.05
+    });
+    cubeMesh = new THREE.Mesh(cubeGeometry, material);
+    pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
+    cubeMesh.position.set(0,0,0);
+    pyramidMesh.position.set(0,0,0);
+    pyramidMesh.visible = false;
+    scene.add(cubeMesh);
+    scene.add(pyramidMesh);
+  }
 
   function animate() {
     const time = performance.now() * 0.0001;
@@ -73,16 +94,36 @@
     switch(key) {
       case 'toPrism':
         TweenLite.to(
-          mesh.rotation,
+          cubeMesh.rotation,
           2,
           {
             x: Math.PI * 3,
             y: -Math.PI * 0.25,
-            z: Math.PI * 2
+            z: Math.PI * 2 /* ,
+            ease: Power4.easeIn */
           }
         );
         TweenLite.to(
-          mesh.scale,
+          pyramidMesh.rotation,
+          1.2,
+          {
+            x: Math.PI * 6,
+            y: -Math.PI * 6,
+            z: Math.PI * 6
+          }
+        );
+        TweenLite.to(
+          pyramidMesh.scale,
+          1.5,
+          {
+            x: 3.5,
+            y: 3.5,
+            z: 3.5 /* ,
+            ease: Power4.easeIn */
+          },
+        );
+        TweenLite.to(
+          cubeMesh.scale,
           1,
           {
             x: 0.4,
@@ -90,7 +131,11 @@
             z: 0.4,
           }
         );
-        setTimeout(() => { mesh.visible = false; }, 1000);
+        setTimeout(() => {
+          pyramidMesh.visible = true;
+          cubeMesh.visible = false;
+          controls.enabled = true;
+        }, 500);
         break;
       default:
         break;
@@ -101,6 +146,7 @@
     composer.render(time);
   }
 
+  // Add postprocessing composer
   function addComposer() {
     //composer
     composer = new THREE.EffectComposer(renderer);
@@ -195,6 +241,7 @@
     chromaticAberrationPass.renderToScreen = true;
   }
 
+  // Handle resize
   function onResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -207,24 +254,39 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
+  function mouseIntersects() {
+    const intersects = raycaster.intersectObjects(scene.children, false);
+    raycaster.setFromCamera(mouse, camera);
+
+    return intersects;
+  }
+
+  // Handle mouse movement/picking
   function onMouseMove(event) {
     event.preventDefault();
     mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+    const objectsHovered = mouseIntersects();
+
+    // Indicate an object is picked
+    if (objectsHovered.length > 0) {
+      document.body.style.cursor = 'pointer';
+    } else {
+      document.body.style.cursor = 'auto';
+    }
   }
 
   function onMouseDown(even) {
     event.preventDefault();
+    const objectsPicked = mouseIntersects();
 
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, false);
-
-    if (intersects.length > 0) {
-        console.log('object clicked');
-        key = 'toPrism';
+    if (objectsPicked.length > 0) {
+      key = 'toPrism';
     }
   }
 
+  // Register listeners
   window.addEventListener('resize', onResize, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('mousedown', onMouseDown, false);
