@@ -13,6 +13,9 @@
     pyramidMesh,
     wirePyramidMesh,
     pointPyramidMesh,
+    materialShader,
+    lineShader,
+    pointShader,
     light,
     mouse,
     raycaster,
@@ -86,26 +89,54 @@
     addComposer();
   }
 
+  function augmentShader( shader ) {
+    shader.uniforms.time = { value: 0 };
+    shader.uniforms.scramblerActive = { value: 0 };
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      '#include <common>' + getShader('seededNoise')
+    )
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      getShader('vertexScrambler')
+    );
+
+    if (!materialShader) {
+      materialShader = shader;
+    }
+    if (!lineShader) {
+      lineShader = shader;
+    }
+    if (!pointShader) {
+      pointShader = shader;
+    }
+  };
+
   // Initialize geometry
   function initGeometry() {
     const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
     const pyramidGeometry = new THREE.FancyTetrahedronGeometry(4, 0);
+    const modifier = new THREE.TessellateModifier( 1 );
 
-    const material = new THREE.MeshStandardMaterial({
+    // modifier.modify( pyramidGeometry );
+
+    const material = new THREE.MeshPhongMaterial({
       color: 0x222225, // 0x555558,
-      metalness: 0
     });
+    material.onBeforeCompile = augmentShader;
 
     const lineMaterial = new THREE.MeshBasicMaterial({
       color: 0x272726,
       wireframeLinewidth: 20,
       wireframe: true,
     });
+    lineMaterial.onBeforeCompile = augmentShader;
 
     const pointMaterial = new THREE.PointsMaterial({
       color: 0x444446,
       size: 0.5
     });
+    pointMaterial.onBeforeCompile = augmentShader;
 
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
@@ -229,6 +260,10 @@
             pointPyramidMesh.visible = true;
             cubeMesh.visible = false;
             controls.enabled = true;
+
+            materialShader.uniforms.scramblerActive.value = 1;
+            lineShader.uniforms.scramblerActive.value = 1;
+            pointShader.uniforms.scramblerActive.value = 1;
           },
         0.5);
 
@@ -238,6 +273,9 @@
         break;
     }
 
+    if (materialShader) materialShader.uniforms.time.value = time;
+    if (lineShader) lineShader.uniforms.time.value = time;
+    if (pointShader) pointShader.uniforms.time.value = time;
     chromaticAberrationPass.uniforms["time"].value = Math.cos(time*10);
     light.position.copy(camera.position);
     requestAnimationFrame(animate);

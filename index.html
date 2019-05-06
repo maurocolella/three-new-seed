@@ -18,6 +18,29 @@
         gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
       }
     </script>
+    <script id="vertexScrambler" type="x-shader/x-vertex-chunk">
+      vec3 intermediate = vec3( position );
+      float blur = 0.0;
+      blur = (1.0 + sin(time * 6.0)) * 0.04;
+      blur *= 1.0 + sin(time * 16.0) * 0.04;
+      blur = pow(blur, 3.0);
+      blur *= 0.05;
+
+      if (scramblerActive != 0.0) {
+        intermediate = vec3( seededNoise(vec2(position.x + blur, position.y)) * 4.0, seededNoise(vec2(position.y + blur, position.z)) * 4.0, seededNoise(vec2(position.z + blur, position.x)) * 4.0 );
+      }
+
+      vec3 transformed = vec3( intermediate );
+    </script>
+    <script id="seededNoise" type="x-shader/x-vertex-chunk">
+      uniform float time;
+      uniform float scramblerActive;
+
+      float seededNoise(vec2 co)
+      {
+        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+      }
+    </script>
     <script id="postFilter" type="x-shader/x-fragment">
       uniform sampler2D tDiffuse;
       uniform vec2 resolution;
@@ -75,6 +98,7 @@
     <script src="libs/RenderPass.js"></script>
     <script src="libs/UnrealBloomPass.js"></script>
     <script src="libs/LuminosityHighPassShader.js"></script>
+    <script src="libs/TessellateModifier.js"></script>
 
     <!-- app bundle -->
     <script src="app/main.js"></script>
