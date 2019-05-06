@@ -1,6 +1,7 @@
 'use strict';
 
 (function(){
+  // Script globals
   let renderer,
     composer,
     renderPass,
@@ -15,10 +16,12 @@
     raycaster,
     key;
 
+  // Shaders
   let bloomPass,
-    chromaticAberration,
+    chromaticAberrationProgram,
     chromaticAberrationPass;
 
+  // Extension
   THREE.FancyTetrahedronGeometry = function ( radius, detail ) {
       var vertices = [ 0,  0,  0,   - 1, - 1,  1,   - 2,  1, - 1,    3, - 2, - 1];
       var indices = [ 2,  1,  0,    0,  3,  2,  1,  3,  0,    2,  3,  1];
@@ -26,8 +29,11 @@
   };
   THREE.FancyTetrahedronGeometry.prototype = Object.create( THREE.Geometry.prototype );
 
+  function getShader(shaderId) {
+    return document.getElementById(shaderId).textContent;
+  }
 
-  // Initialize the pipeline
+  // Initialize pipeline
   function init() {
     // renderer
     renderer = new THREE.WebGLRenderer();
@@ -49,8 +55,8 @@
 
     // controls
     controls = new THREE.OrbitControls(camera);
-    /* controls.enablePan = false;
-    controls.enableZoom = false; */
+    controls.enablePan = false;
+    controls.enableZoom = false;
     controls.enabled = false;
 
     // picking
@@ -154,7 +160,7 @@
     //passes
     renderPass = new THREE.RenderPass(scene, camera);
 
-    chromaticAberration = {
+    chromaticAberrationProgram = {
       uniforms: {
         tDiffuse: { type: "t", value: null },
         resolution: {
@@ -167,63 +173,10 @@
         power: { value: 0.5 }
       },
 
-      vertexShader: `
-
-          varying vec2 vUv;
-
-          void main() {
-
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-          }
-          `,
-
-      fragmentShader: `
-      uniform sampler2D tDiffuse;
-      uniform vec2 resolution;
-      uniform float time;
-
-      float rand(vec2 co)
-      {
-        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
-      }
-
-      void main() {
-      // distance from center of image, used to adjust blur
-        vec2 uv=(gl_FragCoord.xy/resolution.xy);
-        float d = length(uv - vec2(0.5,0.5));
-
-        float seed = 0.4;
-        float noiseIntensity = 0.07;
-        float randomValue = rand(gl_FragCoord.xy * seed * time);
-        float noise = (randomValue - 0.5) * noiseIntensity;
-
-        // blur amount
-        float blur = 0.0;
-        blur = (1.0 + sin(time * 6.0)) * 0.4;
-        blur *= 1.0 + sin(time * 16.0) * 0.4;
-        blur = pow(blur, 3.0);
-        blur *= 0.05;
-        // reduce blur towards center
-        blur *= d;
-
-        // final color
-        vec3 col;
-        col.r = texture2D( tDiffuse, vec2(uv.x+blur,uv.y) ).r;
-        col.g = texture2D( tDiffuse, uv ).g;
-        col.b = texture2D( tDiffuse, vec2(uv.x,uv.y-blur) ).b;
-
-        // noise
-        col.r += noise;
-        col.g += noise;
-        col.b += noise;
-
-        gl_FragColor = vec4(col,1.0);
-      }
-        `
+      vertexShader: getShader('vertexPlain'),
+      fragmentShader: getShader('postFilter')
     };
-    chromaticAberrationPass = new THREE.ShaderPass(chromaticAberration);
+    chromaticAberrationPass = new THREE.ShaderPass(chromaticAberrationProgram);
 
     bloomPass = new THREE.UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
