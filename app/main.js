@@ -11,11 +11,11 @@
     controls,
     cubeMesh,
     pyramidMesh,
+    wirePyramidMesh,
     light,
     mouse,
     raycaster,
-    key,
-    halfPI = Math.PI/2;
+    key;
 
   // Shaders
   let bloomPass,
@@ -61,7 +61,7 @@
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enabled = false;
-    controls.rotateSpeed = 0.2;
+    controls.rotateSpeed = 0.18;
 
     // Remove default OrbitControls event listeners
     controls.dispose();
@@ -89,22 +89,34 @@
   function initGeometry() {
     const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
     const pyramidGeometry = new THREE.FancyTetrahedronGeometry(4, 0);
+
     const material = new THREE.MeshStandardMaterial({
       color: 0x222225, // 0x555558,
       metalness: 0.05
     });
 
+    const lineMaterial = new THREE.MeshBasicMaterial( {
+      color: 0x272726,
+      wireframeLinewidth: 20,
+      wireframe: true,
+    });
+
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
+    wirePyramidMesh = new THREE.Mesh(pyramidGeometry, lineMaterial);
 
     cubeMesh.position.set(0,0,0);
     cubeMesh.rotation.set(0.6,-0.3,0);
     pyramidMesh.position.set(0,0,0);
+    wirePyramidMesh.position.set(0,0,0);
+    wirePyramidMesh.scale.set(1.05, 1.05, 1.05);
 
     pyramidMesh.visible = false;
+    wirePyramidMesh.visible = false;
 
     scene.add(cubeMesh);
     scene.add(pyramidMesh);
+    scene.add(wirePyramidMesh);
   }
 
   // ********************** Animation *********************
@@ -114,7 +126,9 @@
 
     switch(key) {
       case 'toPrism':
-        TweenLite.to(
+        // Animate cube
+        (new TimelineLite())
+        .to(
           cubeMesh.rotation,
           2,
           {
@@ -123,8 +137,19 @@
             z: Math.PI * 2 /* ,
             ease: Power4.easeIn */
           }
+        ).to(
+          cubeMesh.scale,
+          1,
+          {
+            x: 0.4,
+            y: 0.4,
+            z: 0.4,
+          },
+          0
         );
-        TweenLite.to(
+
+        // Animate prism
+        (new TimelineLite()).to(
           pyramidMesh.rotation,
           1.2,
           {
@@ -132,8 +157,7 @@
             y: -Math.PI * 8.4,
             z: Math.PI * 6
           }
-        );
-        TweenLite.to(
+        ).to(
           pyramidMesh.scale,
           1.5,
           {
@@ -142,21 +166,37 @@
             z: 3.5 /* ,
             ease: Power4.easeIn */
           },
+          0
         );
-        TweenLite.to(
-          cubeMesh.scale,
-          1,
+
+        // Animate wire prism
+        (new TimelineLite()).to(
+          wirePyramidMesh.rotation,
+          1.2,
           {
-            x: 0.4,
-            y: 0.4,
-            z: 0.4,
+            x: Math.PI * 6,
+            y: -Math.PI * 8.4,
+            z: Math.PI * 6
           }
-        );
-        setTimeout(() => {
-          pyramidMesh.visible = true;
-          cubeMesh.visible = false;
-          controls.enabled = true;
-        }, 500);
+        ).to(
+          wirePyramidMesh.scale,
+          1.5,
+          {
+            x: 3.675,
+            y: 3.675,
+            z: 3.675 /* ,
+            ease: Power4.easeIn */
+          },
+          0
+        ).add(
+          () => {
+            pyramidMesh.visible = true;
+            wirePyramidMesh.visible = true;
+            cubeMesh.visible = false;
+            controls.enabled = true;
+          },
+        0.5);
+
         break;
       default:
         break;
