@@ -1,13 +1,15 @@
 <html>
+
   <head>
     <style>
-    body {
-      background-color: #888;
-      margin: 0px;
-      overflow: hidden;
-    }
+      body {
+        background-color: #888;
+        margin: 0px;
+        overflow: hidden;
+      }
     </style>
   </head>
+
   <body>
     <!-- shaders -->
     <script id="vertexPlain" type="x-shader/x-vertex">
@@ -21,20 +23,20 @@
     <script id="vertexScrambler" type="x-shader/x-vertex-chunk">
       vec3 intermediate = vec3( position );
       float blur = 0.0;
-      blur = (1.0 + sin(time * 6.0)) * 0.04;
-      blur *= 1.0 + sin(time * 16.0) * 0.04;
+      blur = (1.0 + sin(factor * 6.0)) * 0.04;
+      blur *= 1.0 + sin(factor * 16.0) * 0.04;
       blur = pow(blur, 3.0);
       blur *= 0.05;
 
       if (scramblerActive != 0.0) {
-		float intensity = 2.0;
-        intermediate = position * vec3( 1.0 - intensity * seededNoise(vec2(position.x + blur, position.y)), 1.0 - intensity * seededNoise(vec2(position.y + blur, position.z)), 1.0 - intensity * seededNoise(vec2(position.z + blur, position.x)));
+    intermediate = position * vec3( 1.0 - intensity * seededNoise(vec2(position.x + blur, position.y)), 1.0 - intensity * seededNoise(vec2(position.y + blur, position.z)), 1.0 - intensity * seededNoise(vec2(position.z + blur, position.x)));
       }
 
       vec3 transformed = vec3( intermediate );
     </script>
     <script id="seededNoise" type="x-shader/x-vertex-chunk">
-      uniform float time;
+      uniform float intensity;
+      uniform float factor;
       uniform float scramblerActive;
 
       float seededNoise(vec2 co)
@@ -104,4 +106,5 @@
     <!-- app bundle -->
     <script src="app/main.js"></script>
   </body>
+
 </html>
