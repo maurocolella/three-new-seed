@@ -85,6 +85,8 @@
     pyramidMesh,
     wirePyramidMesh,
     pointPyramidMesh,
+    pointCloud,
+    particleGeometry,
     light,
     mouse,
     raycaster,
@@ -92,6 +94,7 @@
     shaderRefs,
     scramblerEnabled = 1,
     randomSeed = 0,
+    particlesCount = 48,
     animController = {
       foldIntensity: 2
     },
@@ -204,6 +207,8 @@
     const spriteMaterial = new THREE.SpriteMaterial({
       map: texture,
       fog: true,
+      transparent: true,
+      opacity: 0
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     context = null;
@@ -219,17 +224,18 @@
     const pyramidGeometry = new THREE.ConeGeometry(4, 2, payload.length); // new THREE.FancyTetrahedronGeometry(4, 0);
     const edges = new THREE.EdgesGeometry(pyramidGeometry);
     tessellateModifier.modify(pyramidGeometry);
+    tessellateModifier.modify(pyramidGeometry);
 
     const pointGeometry = new THREE.ConeGeometry(4, 2, payload.length);
 
     const material = new THREE.MeshLambertMaterial({
-      color: 0x222225, // 0x555558,
+      color: 0x222225 // 0x555558,
     });
     material.onBeforeCompile = augmentShader;
 
     const lineMaterial = new THREE.MeshBasicMaterial({
       color: 0x272726,
-      wireframeLinewidth: 20,
+      wireframeLinewidth: 1,
       wireframe: true,
     });
     lineMaterial.onBeforeCompile = augmentShader;
@@ -240,22 +246,40 @@
     });
     pointMaterial.onBeforeCompile = augmentShader;
 
+    const particleMaterial = new THREE.PointsMaterial({
+      color: 0xff6677,
+      size: 0.5,
+    });
+
+    particleGeometry = new THREE.Geometry();
+    let x, y, z, i;
+    for (i = 0; i < pointGeometry.vertices.length * particlesCount; i++) {
+      x = (Math.random() * 800) - 400;
+      y = (Math.random() * 800) - 400;
+      z = (Math.random() * 800) - 400;
+
+      particleGeometry.vertices.push(new THREE.Vector3(x, y, z));
+    }
+
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
     wirePyramidMesh = new THREE.Mesh(edges, lineMaterial);
     pointPyramidMesh = new THREE.Points(pointGeometry, pointMaterial);
+    pointCloud = new THREE.Points(particleGeometry, particleMaterial);
+    pointCloud.visible = false;
 
-    cubeMesh.position.set(0, 0, -4);
+    // cubeMesh.position.set(0, 0, -4);
     cubeMesh.rotation.set(0.6, -0.3, 0);
+    cubeMesh.name = 'cube';
 
-    pyramidMesh.position.set(0, -2, -4);
+    // pyramidMesh.position.set(0, -2, -4);
     pyramidMesh.visible = false;
 
-    wirePyramidMesh.position.set(0, -2, -4);
+    // wirePyramidMesh.position.set(0, -2, -4);
     wirePyramidMesh.scale.set(1.1, 1.1, 1.1);
     wirePyramidMesh.visible = false;
 
-    pointPyramidMesh.position.set(0, -2, -4);
+    // pointPyramidMesh.position.set(0, -2, -4);
     pointPyramidMesh.scale.set(1.1, 1.1, 1.1);
     pointPyramidMesh.visible = false;
 
@@ -263,10 +287,10 @@
     scene.add(pyramidMesh);
     scene.add(wirePyramidMesh);
     scene.add(pointPyramidMesh);
+    scene.add(pointCloud);
 
-    let i;
     for (i = 0; i < labelSprites.length; i++) {
-      labelSprites[i].scale.set(12.0, 12.0, 12.0);
+      labelSprites[i].scale.set(12, 12, 12);
       labelSprites[i].visible = false;
       labelSprites[i].onBeforeRender = function (renderer) { renderer.clearDepth(); };
       scene.add(labelSprites[i]);
@@ -368,6 +392,7 @@
             wirePyramidMesh.visible = true;
             pointPyramidMesh.visible = true;
             cubeMesh.visible = false;
+            controls.enabled = true;
 
             let i = 0;
             for (; i < shaderRefs.length; i++) {
@@ -387,20 +412,47 @@
         )
           .add(
             function () {
-              controls.enabled = true;
               key = 'idle';
+              pointCloud.visible = true;
 
               let i;
               const vertices = pointPyramidMesh.geometry.vertices;
-              let vertex;
+              let vertex, scaledVertex;
 
+              // First pass, position labels
               for (i = 0; i < labelSprites.length; i++) {
                 vertex = vertices[i + 1].clone();
-                vertex = new THREE.Vector3(vertex.x * 1.2, vertex.y * 1.2, vertex.z * 1.2);
-                vertex.applyMatrix4(pointPyramidMesh.matrix);
+                scaledVertex = new THREE.Vector3(vertex.x * 1.2, vertex.y * 1.2, vertex.z * 1.2);
+
+                scaledVertex.applyMatrix4(pointPyramidMesh.matrix);
+
                 labelSprites[i].visible = true;
-                labelSprites[i].position.set(vertex.x, vertex.y, vertex.z);
+                labelSprites[i].position.set(scaledVertex.x, scaledVertex.y, scaledVertex.z);
+                if (labelSprites[i].material.opacity < 1) labelSprites[i].material.opacity += 0.1;
               }
+
+              const acc = [];
+
+              // Second pass, position particles
+              for (i = 0; i < vertices.length; i++) {
+                vertex = vertices[i].clone();
+                vertex.applyMatrix4(pointPyramidMesh.matrix);
+
+                let j;
+                for (j = 0; j < particlesCount; j++) {
+                  const k = i * particlesCount + j;
+                  acc.push(k);
+                  const particleVertex = particleGeometry.vertices[k].clone();
+                  particleGeometry.vertices[k] = new THREE.Vector3(
+                    (particleVertex.x * 4 + vertex.x) * 0.2,
+                    (particleVertex.y * 4 + vertex.y) * 0.2,
+                    (particleVertex.z * 4 + vertex.z) * 0.2,
+                  );
+                }
+              }
+              acc.sort();
+              console.log({ acc });
+              particleGeometry.verticesNeedUpdate = true;
             }
           );
         let i = 0;
@@ -415,6 +467,9 @@
       let i = 0;
       for (; i < shaderRefs.length; i++) {
         shaderRefs[i].uniforms.factor.value = randomSeed;
+        // 0.014, 0.015, 0.016, 0.017, 0.026, 0.027, 0.028, 0.029, 0.030, 0.031,
+        // 0.032, 0.033, 0.035, 0.037, 0.038, 0.039, 0.040, 0.041, 0.043, 0.044
+        // 0.046, 0.047, 0.050, 0.051, 0.053, 0.054, 0.055, 0.056, 0.058, 0.059
       }
     }
     chromaticAberrationPass.uniforms["time"].value = Math.cos(time * 10);
@@ -507,14 +562,17 @@
     if (objectsHovered.length > 0) {
       let i = 0;
       for (; i < objectsHovered.length; i++) {
-        if (objectsHovered[i].object.type === 'Sprite') {
-          // console.log('sprite hovered');
+        const object = objectsHovered[i].object;
+        if (object.type === 'Sprite' || object.name === 'cube') {
           document.body.style.cursor = 'pointer';
         }
       }
-      // document.body.style.cursor = 'pointer';
     } else {
-      document.body.style.cursor = 'auto';
+      if (key === 'toPrism') {
+        document.body.style.cursor = 'pointer';
+      } else {
+        document.body.style.cursor = 'auto';
+      }
     }
   }
 
