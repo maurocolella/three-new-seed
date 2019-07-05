@@ -13,26 +13,20 @@
     pyramidMesh,
     wirePyramidMesh,
     pointPyramidMesh,
-    materialShader,
-    lineShader,
-    pointShader,
     light,
     mouse,
     raycaster,
-    key;
+    key,
+	shaderRefs,
+    scramblerEnabled = 1,
+	randomSeed = 0;
+    
+  let tessellateModifier = new THREE.TessellateModifier( 1 );
 
   // Shaders
   let bloomPass,
     chromaticAberrationProgram,
     chromaticAberrationPass;
-
-  // Extension
-  THREE.FancyTetrahedronGeometry = function ( radius, detail ) {
-      var vertices = [ 0,  0,  0,   - 1, - 1,  1,   - 2,  1, - 1,    2.5, - 2, - 1];
-      var indices = [ 2,  1,  0,    0,  3,  2,  1,  3,  0,    2,  3,  1];
-      THREE.PolyhedronGeometry.call( this, vertices, indices, radius, detail );
-  };
-  THREE.FancyTetrahedronGeometry.prototype = Object.create( THREE.Geometry.prototype );
 
   function getShader(shaderId) {
     return document.getElementById(shaderId).textContent;
@@ -66,6 +60,10 @@
     controls.enableZoom = false;
     controls.enabled = false;
     controls.rotateSpeed = 0.18;
+	// controls.target = new THREE.Vector3(0, 0, 8);
+	
+	controls.minAzimuthAngle = -Math.PI / 2; // radians
+	controls.maxAzimuthAngle = Math.PI / 2; // radians
 
     // Remove default OrbitControls event listeners
     controls.dispose();
@@ -82,6 +80,8 @@
     light = new THREE.DirectionalLight(0x9090a2);
     light.position.copy(camera.position);
     scene.add(light);
+	
+	shaderRefs = [];
 
     initGeometry();
 
@@ -90,37 +90,31 @@
   }
 
   function augmentShader( shader ) {
-    shader.uniforms.time = { value: 0 };
-    shader.uniforms.scramblerActive = { value: 0 };
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <common>',
-      '#include <common>' + getShader('seededNoise')
-    )
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      getShader('vertexScrambler')
-    );
-
-    if (!materialShader) {
-      materialShader = shader;
-    }
-    if (!lineShader) {
-      lineShader = shader;
-    }
-    if (!pointShader) {
-      pointShader = shader;
-    }
+	shader.uniforms.time = { value: 0 };
+	shader.uniforms.scramblerActive = { value: 0 };
+	shader.vertexShader = shader.vertexShader.replace(
+	  '#include <common>',
+	  '#include <common>' + getShader('seededNoise')
+	)
+	shader.vertexShader = shader.vertexShader.replace(
+	  '#include <begin_vertex>',
+	  getShader('vertexScrambler')
+	);
+	
+	shaderRefs.push(shader);
   };
 
   // Initialize geometry
   function initGeometry() {
     const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
-    const pyramidGeometry = new THREE.FancyTetrahedronGeometry(4, 0);
-    const modifier = new THREE.TessellateModifier( 1 );
-
-    // modifier.modify( pyramidGeometry );
-
-    const material = new THREE.MeshPhongMaterial({
+    
+	const pyramidGeometry = new THREE.ConeGeometry(4, 2, 3); // new THREE.FancyTetrahedronGeometry(4, 0);
+    const edges = new THREE.EdgesGeometry( pyramidGeometry );
+	tessellateModifier.modify(pyramidGeometry);
+    
+	const pointGeometry = new THREE.ConeGeometry(4, 2, 3);
+	
+    const material = new THREE.MeshLambertMaterial({
       color: 0x222225, // 0x555558,
     });
     material.onBeforeCompile = augmentShader;
@@ -140,20 +134,20 @@
 
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
-    wirePyramidMesh = new THREE.Mesh(pyramidGeometry, lineMaterial);
-    pointPyramidMesh = new THREE.Points(pyramidGeometry, pointMaterial);
+    wirePyramidMesh = new THREE.Mesh(edges, lineMaterial);
+    pointPyramidMesh = new THREE.Points(pointGeometry, pointMaterial);
 
     cubeMesh.position.set(0,0,0);
     cubeMesh.rotation.set(0.6,-0.3,0);
 
-    pyramidMesh.position.set(0,0,0);
+    pyramidMesh.position.set(0,-2,0);
     pyramidMesh.visible = false;
 
-    wirePyramidMesh.position.set(0,0,0);
+    wirePyramidMesh.position.set(0,-2,0);
     wirePyramidMesh.scale.set(1.1, 1.1, 1.1);
     wirePyramidMesh.visible = false;
 
-    pointPyramidMesh.position.set(0,0,0);
+    pointPyramidMesh.position.set(0,-2,0);
     pointPyramidMesh.scale.set(1.1, 1.1, 1.1);
     pointPyramidMesh.visible = false;
 
@@ -167,6 +161,17 @@
 
   function animate() {
     const time = performance.now() * 0.0001;
+	const span = time * 1000 % 300;
+	if (span < 70 && span % 10 < 1) {
+		randomSeed = Math.random();
+	}
+	
+	const prismRotation = 
+          {
+            x: Math.PI * 6.4,
+            y: -Math.PI * 8.1,
+            z: Math.PI * 4
+          };
 
     switch(key) {
       case 'toPrism':
@@ -176,7 +181,7 @@
           cubeMesh.rotation,
           2,
           {
-            x: Math.PI * 3,
+            x: Math.PI * 5,
             y: -Math.PI * 0.25,
             z: Math.PI * 2 /* ,
             ease: Power4.easeIn */
@@ -196,11 +201,7 @@
         (new TimelineLite()).to(
           pyramidMesh.rotation,
           1.2,
-          {
-            x: Math.PI * 6,
-            y: -Math.PI * 8.4,
-            z: Math.PI * 6
-          }
+          prismRotation
         ).to(
           pyramidMesh.scale,
           1.5,
@@ -217,11 +218,7 @@
         (new TimelineLite()).to(
           wirePyramidMesh.rotation,
           1.2,
-          {
-            x: Math.PI * 6,
-            y: -Math.PI * 8.4,
-            z: Math.PI * 6
-          }
+          prismRotation
         ).to(
           wirePyramidMesh.scale,
           1.5,
@@ -238,11 +235,7 @@
         (new TimelineLite()).to(
           pointPyramidMesh.rotation,
           1.2,
-          {
-            x: Math.PI * 6,
-            y: -Math.PI * 8.4,
-            z: Math.PI * 6
-          }
+		  prismRotation
         ).to(
           pointPyramidMesh.scale,
           1.5,
@@ -260,12 +253,14 @@
             pointPyramidMesh.visible = true;
             cubeMesh.visible = false;
             controls.enabled = true;
+			// controls.autoRotate = true;
 
-            materialShader.uniforms.scramblerActive.value = 1;
-            lineShader.uniforms.scramblerActive.value = 1;
-            pointShader.uniforms.scramblerActive.value = 1;
+			let i = 0;
+			for(;i<shaderRefs.length;i++){
+				shaderRefs[i].uniforms.scramblerActive.value = scramblerEnabled;
+			}
           },
-        0.5);
+        0.7);
 
 
         break;
@@ -273,11 +268,15 @@
         break;
     }
 
-    if (materialShader) materialShader.uniforms.time.value = time;
-    if (lineShader) lineShader.uniforms.time.value = time;
-    if (pointShader) pointShader.uniforms.time.value = time;
+	if (scramblerEnabled) {
+		let i = 0;
+		for(;i<shaderRefs.length;i++){
+			shaderRefs[i].uniforms.time.value = randomSeed;
+		}
+	}
     chromaticAberrationPass.uniforms["time"].value = Math.cos(time*10);
     light.position.copy(camera.position);
+	controls.update();
     requestAnimationFrame(animate);
     composer.render(time);
   }
@@ -369,7 +368,7 @@
     }
   }
 
-  function onMouseDown(even) {
+  function onMouseDown(event) {
     event.preventDefault();
     const objectsPicked = mouseIntersects();
 
@@ -377,11 +376,19 @@
       key = 'toPrism';
     }
   }
+  
+  function onKeyUp(event) {
+	if(event.keyCode == 32){
+        //your code
+        scramblerEnabled = scramblerEnabled === 0 ? 1 : 0;
+    }
+  }
 
   // Register listeners
   window.addEventListener('resize', onResize, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('mousedown', onMouseDown, false);
+  document.addEventListener('keyup', onKeyUp, false);
 
   init();
   animate();

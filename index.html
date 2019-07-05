@@ -27,7 +27,8 @@
       blur *= 0.05;
 
       if (scramblerActive != 0.0) {
-        intermediate = vec3( seededNoise(vec2(position.x + blur, position.y)) * 4.0, seededNoise(vec2(position.y + blur, position.z)) * 4.0, seededNoise(vec2(position.z + blur, position.x)) * 4.0 );
+		float intensity = 2.0;
+        intermediate = position * vec3( 1.0 - intensity * seededNoise(vec2(position.x + blur, position.y)), 1.0 - intensity * seededNoise(vec2(position.y + blur, position.z)), 1.0 - intensity * seededNoise(vec2(position.z + blur, position.x)));
       }
 
       vec3 transformed = vec3( intermediate );
