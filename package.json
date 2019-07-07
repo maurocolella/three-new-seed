@@ -1,0 +1,27 @@
+{
+  "name": "three-seed",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --config webpack.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maurocolella/three-new-seed.git"
+  },
+  "author": "Mauro Colella",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/maurocolella/three-new-seed/issues"
+  },
+  "homepage": "https://github.com/maurocolella/three-new-seed#readme",
+  "devDependencies": {
+    "@babel/core": "^7.5.0",
+    "@babel/preset-env": "^7.5.0",
+    "babel-loader": "^8.0.6",
+    "webpack": "^4.35.2",
+    "webpack-cli": "^3.3.5"
+  }
+}
