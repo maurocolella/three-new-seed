@@ -48,31 +48,6 @@
     });
   }
 
-  // Configuration
-  const payload = [
-    {
-      title: 'Google',
-      subtitle: 'Search engine',
-      link: 'https://www.google.com'
-    },
-    {
-      title: 'Bing',
-      subtitle: 'Search engine',
-      link: 'https://www.bing.com'
-    },
-    {
-      title: 'Amazon',
-      subtitle: 'Electronic store',
-      link: 'https://www.amazon.com'
-    }
-  ];
-
-  const fontStyle = {
-    font: 'Verdana, sans-serif',
-    color: '#777777',
-  };
-
-
   // Script globals
   let renderer,
     composer,
@@ -119,10 +94,16 @@
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    // renderer.setClearColor( 0x000000, 0 );
+
+    const loader = new THREE.TextureLoader();
+    const bgTexture = loader.load(backgroundImage);
 
     // scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1b1c1f /*0x18191d */);
+    scene.background = bgTexture;
+
+    // scene.background = new THREE.Color(0x18191c /* 0x1b1c1f /*0x18191d */);
 
     // camera
     camera = new THREE.PerspectiveCamera(
@@ -153,10 +134,15 @@
     raycaster = new THREE.Raycaster();
 
     // ambient light
-    scene.add(new THREE.AmbientLight(0x444446));
+    const ambientLight = new THREE.AmbientLight(0x444446);
+    scene.add(ambientLight);
+
+    const topLight = new THREE.DirectionalLight(0x444446, 4.0);
+    topLight.position.set(8,20,10);
+    scene.add(topLight);
 
     // directional light
-    light = new THREE.DirectionalLight(0x9090a2);
+    light = new THREE.DirectionalLight(0x909099, 4.0);
     light.position.copy(camera.position);
     scene.add(light);
 
@@ -509,7 +495,7 @@
 
     bloomPass = new THREE.UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.5,
+      1.2,
       0.4,
       0.85
     );
@@ -518,7 +504,7 @@
     bloomPass.radius = 0;
 
     composer.addPass(renderPass);
-    composer.addPass(bloomPass);
+    // composer.addPass(bloomPass);
     composer.addPass(chromaticAberrationPass);
     chromaticAberrationPass.renderToScreen = true;
   }
