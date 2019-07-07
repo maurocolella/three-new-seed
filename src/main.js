@@ -22,7 +22,7 @@
     shaderRefs,
     scramblerEnabled = 1,
     randomSeed = 0,
-    particlesCount = 48,
+    particlesCount = 60,
     animController = {
       foldIntensity: 2
     },
@@ -90,17 +90,17 @@
     const ambientLight = new THREE.AmbientLight(0x444446);
     scene.add(ambientLight);
 
+    // extra light
     const topLight = new THREE.DirectionalLight(0x444446, 4.0);
     topLight.position.set(8,20,10);
     scene.add(topLight);
 
-    // directional light
+    // camera light
     light = new THREE.DirectionalLight(0x909099, 4.0);
     light.position.copy(camera.position);
     scene.add(light);
 
     shaderRefs = [];
-
     initGeometry();
 
     document.body.appendChild(renderer.domElement);
@@ -167,11 +167,13 @@
 
     const pointGeometry = new THREE.ConeGeometry(4, 2, payload.length);
 
+    // Solid material
     const material = new THREE.MeshLambertMaterial({
       color: 0x222225 // 0x555558,
     });
     material.onBeforeCompile = augmentShader;
 
+    // Wire material
     const lineMaterial = new THREE.MeshBasicMaterial({
       color: 0x272726,
       wireframeLinewidth: 1,
@@ -179,17 +181,20 @@
     });
     lineMaterial.onBeforeCompile = augmentShader;
 
+    // Material for points
     const pointMaterial = new THREE.PointsMaterial({
       color: 0x444446,
       size: 0.5
     });
     pointMaterial.onBeforeCompile = augmentShader;
 
+    // Material for particles
     const particleMaterial = new THREE.PointsMaterial({
       color: 0xff6677,
       size: 0.5,
     });
 
+    // Particles
     particleGeometry = new THREE.Geometry();
     let x, y, z, i;
     for (i = 0; i < pointGeometry.vertices.length * particlesCount; i++) {
@@ -200,6 +205,7 @@
       particleGeometry.vertices.push(new THREE.Vector3(x, y, z));
     }
 
+    // Create meshes and solids
     cubeMesh = new THREE.Mesh(cubeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
     wirePyramidMesh = new THREE.Mesh(edges, lineMaterial);
@@ -207,27 +213,25 @@
     pointCloud = new THREE.Points(particleGeometry, particleMaterial);
     pointCloud.visible = false;
 
-    // cubeMesh.position.set(0, 0, -4);
     cubeMesh.rotation.set(0.6, -0.3, 0);
     cubeMesh.name = 'cube';
 
-    // pyramidMesh.position.set(0, -2, -4);
     pyramidMesh.visible = false;
 
-    // wirePyramidMesh.position.set(0, -2, -4);
     wirePyramidMesh.scale.set(1.1, 1.1, 1.1);
     wirePyramidMesh.visible = false;
 
-    // pointPyramidMesh.position.set(0, -2, -4);
     pointPyramidMesh.scale.set(1.1, 1.1, 1.1);
     pointPyramidMesh.visible = false;
 
+    // Append to scene
     scene.add(cubeMesh);
     scene.add(pyramidMesh);
     scene.add(wirePyramidMesh);
     scene.add(pointPyramidMesh);
     scene.add(pointCloud);
 
+    // Text labels
     for (i = 0; i < labelSprites.length; i++) {
       labelSprites[i].scale.set(12, 12, 12);
       labelSprites[i].visible = false;
@@ -251,6 +255,11 @@
       y: -Math.PI * 8.1,
       z: Math.PI * 4
     };
+
+    let i = 0; // Iteration control
+    const vertices = pointPyramidMesh.geometry.vertices;
+    let vertex;
+
 
     switch (key) {
       case 'toPrism':
@@ -338,7 +347,8 @@
               shaderRefs[i].uniforms.scramblerActive.value = scramblerEnabled;
             }
           },
-          0.7);
+          0.7,
+        );
         break;
       case 'unfold':
         (new TimelineLite()).to(
@@ -351,55 +361,59 @@
         )
           .add(
             function () {
-              key = 'idle';
+              key = 'labels';
               pointCloud.visible = true;
-
-              let i;
-              const vertices = pointPyramidMesh.geometry.vertices;
-              let vertex, scaledVertex;
-
-              // First pass, position labels
-              for (i = 0; i < labelSprites.length; i++) {
-                vertex = vertices[i + 1].clone();
-                scaledVertex = new THREE.Vector3(vertex.x * 1.2, vertex.y * 1.2, vertex.z * 1.2);
-
-                scaledVertex.applyMatrix4(pointPyramidMesh.matrix);
-
-                labelSprites[i].visible = true;
-                labelSprites[i].position.set(scaledVertex.x, scaledVertex.y, scaledVertex.z);
-                if (labelSprites[i].material.opacity < 1) labelSprites[i].material.opacity += 0.1;
-              }
-
-              const acc = [];
-
-              // Second pass, position particles
-              for (i = 0; i < vertices.length; i++) {
-                vertex = vertices[i].clone();
-                vertex.applyMatrix4(pointPyramidMesh.matrix);
-
-                let j;
-                for (j = 0; j < particlesCount; j++) {
-                  const k = i * particlesCount + j;
-                  acc.push(k);
-                  const particleVertex = particleGeometry.vertices[k].clone();
-                  particleGeometry.vertices[k] = new THREE.Vector3(
-                    (particleVertex.x * 4 + vertex.x) * 0.2,
-                    (particleVertex.y * 4 + vertex.y) * 0.2,
-                    (particleVertex.z * 4 + vertex.z) * 0.2,
-                  );
-                }
-              }
-              acc.sort();
-              particleGeometry.verticesNeedUpdate = true;
-            }
+            },
           );
-        let i = 0;
         for (; i < shaderRefs.length; i++) {
           shaderRefs[i].uniforms.intensity.value = animController.foldIntensity;
         }
+        break;
+      case 'labels':
+        let scaledVertex;
+
+        // First pass, position labels
+        for (i = 0; i < labelSprites.length; i++) {
+          vertex = vertices[i + 1].clone();
+          scaledVertex = new THREE.Vector3(vertex.x * 1.2, vertex.y * 1.2, vertex.z * 1.2);
+
+          scaledVertex.applyMatrix4(pointPyramidMesh.matrix);
+
+          labelSprites[i].visible = true;
+          labelSprites[i].position.set(scaledVertex.x, scaledVertex.y, scaledVertex.z);
+          if (labelSprites[i].material.opacity < 1) labelSprites[i].material.opacity += 0.1;
+        }
+
+        const acc = [];
+
+        // Second pass, position particles
+        for (i = 0; i < vertices.length; i++) {
+          vertex = vertices[i].clone();
+          vertex.applyMatrix4(pointPyramidMesh.matrix);
+
+          let j;
+          for (j = 0; j < particlesCount; j++) {
+            const k = i * particlesCount + j;
+            acc.push(k);
+            const particleVertex = particleGeometry.vertices[k].clone();
+
+            if (particleVertex.distanceTo(vertex) < 0.2) key = 'particles';
+
+            particleGeometry.vertices[k] = new THREE.Vector3(
+              (particleVertex.x * 4 + vertex.x) * 0.2,
+              (particleVertex.y * 4 + vertex.y) * 0.2,
+              (particleVertex.z * 4 + vertex.z) * 0.2,
+            );
+          }
+        }
+        acc.sort();
+        particleGeometry.verticesNeedUpdate = true;
+        break;
       default:
         break;
     }
+
+    console.log(key);
 
     if (scramblerEnabled) {
       let i = 0;
