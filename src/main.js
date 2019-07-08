@@ -442,7 +442,6 @@
         for (i = 0; i < vertices.length; i++) {
           const connections = [...topologyGraph[i]];
           // const poolSize = particlesCount / connections.length;
-          // console.log(poolSize);
 
           let j;
           for (j = 0; j < particlesCount; j++) {
@@ -609,7 +608,7 @@
     if (objectsPicked.length > 0) {
       if (!key) {
         key = 'toPrism';
-      } else {
+      } else if (key === 'toPrism') {
         key = 'unfold';
       }
 
