@@ -93,12 +93,12 @@
     scene.add(ambientLight);
 
     // extra light
-    const topLight = new THREE.DirectionalLight(0x444446, 4.0);
+    const topLight = new THREE.DirectionalLight(0x444446, 2.0);
     topLight.position.set(8,20,10);
     scene.add(topLight);
 
     // camera light
-    light = new THREE.DirectionalLight(0x909099, 4.0);
+    light = new THREE.DirectionalLight(0x909099, 1.0);
     light.position.copy(camera.position);
     scene.add(light);
 
@@ -543,7 +543,7 @@
     bloomPass.radius = 0;
 
     composer.addPass(renderPass);
-    // composer.addPass(bloomPass);
+    composer.addPass(bloomPass);
     composer.addPass(chromaticAberrationPass);
     chromaticAberrationPass.renderToScreen = true;
   }
