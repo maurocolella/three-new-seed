@@ -1,4 +1,7 @@
 (function () {
+  // Config
+  const { payload, fontStyle, backgroundImage } = threeSeedConfig;
+
   // Script globals
   const
     topologyGraph = [],
