@@ -2,6 +2,14 @@
 
 (function () {
   // Script globals
+  const
+    topologyGraph = [],
+    animController = {
+      foldIntensity: 2
+    },
+    labelSprites = payload.map((entry) => renderText(entry.title, entry.subtitle, fontStyle)),
+    particlesPool = new Array(payload.length);
+
   let renderer,
     composer,
     renderPass,
@@ -22,11 +30,7 @@
     shaderRefs,
     scramblerEnabled = 1,
     randomSeed = 0,
-    particlesCount = 60,
-    animController = {
-      foldIntensity: 2
-    },
-    labelSprites = payload.map(function (entry) { return renderText(entry.title, entry.subtitle, fontStyle); });
+    particlesCount = 60;
 
   let tessellateModifier = new THREE.TessellateModifier(1);
 
@@ -47,7 +51,6 @@
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    // renderer.setClearColor( 0x000000, 0 );
 
     const loader = new THREE.TextureLoader();
     const bgTexture = loader.load(backgroundImage);
@@ -55,7 +58,6 @@
     // scene
     scene = new THREE.Scene();
     scene.background = bgTexture;
-
     // scene.background = new THREE.Color(0x18191c /* 0x1b1c1f /*0x18191d */);
 
     // camera
@@ -107,6 +109,7 @@
     addComposer();
   }
 
+  // Augment original material shaders with custom segments
   function augmentShader(shader) {
     shader.uniforms.intensity = { value: animController.foldIntensity };
     shader.uniforms.factor = { value: 0 };
@@ -114,16 +117,17 @@
     shader.uniforms.scramblerActive = { value: 0 };
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
-      '#include <common>' + getShader('seededNoise')
+      '#include <common>' + getShader('seededNoise'),
     )
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
-      getShader('vertexScrambler')
+      getShader('vertexScrambler'),
     );
 
     shaderRefs.push(shader);
   };
 
+  // Generate text labels / billboarded sprites
   function renderText(text, subtext, style, textureSize = 512) {
     let canvas = document.createElement('canvas');
     canvas.width = textureSize;
@@ -147,7 +151,7 @@
       map: texture,
       fog: true,
       transparent: true,
-      opacity: 0
+      opacity: 0,
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     context = null;
@@ -160,12 +164,30 @@
   function initGeometry() {
     const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
 
-    const pyramidGeometry = new THREE.ConeGeometry(4, 2, payload.length); // new THREE.FancyTetrahedronGeometry(4, 0);
+    const pyramidGeometry = new THREE.ConeGeometry(4, 2, payload.length);
     const edges = new THREE.EdgesGeometry(pyramidGeometry);
     tessellateModifier.modify(pyramidGeometry);
     tessellateModifier.modify(pyramidGeometry);
 
     const pointGeometry = new THREE.ConeGeometry(4, 2, payload.length);
+
+    // Build a representation of the graph of connections in the prism topology
+    const unwrapConnections = ({a, b, c}) => ({a, b, c});
+
+    pointGeometry.vertices.forEach((vertex, index) => {
+      if (typeof topologyGraph[index] === 'undefined') topologyGraph[index] = [];
+
+      pointGeometry.faces.forEach((face) => {
+        const connections = Object.values(unwrapConnections(face));
+        if (connections.indexOf(index) >= 0) {
+          connections.splice(connections.indexOf(index), 1);
+          topologyGraph[index] = [...new Set([...topologyGraph[index], ...connections].sort())];
+        }
+      });
+    });
+
+    // console.table(pointGeometry.faces);
+    // console.table(topologyGraph);
 
     // Solid material
     const material = new THREE.MeshLambertMaterial({
@@ -191,7 +213,7 @@
     // Material for particles
     const particleMaterial = new THREE.PointsMaterial({
       color: 0xff6677,
-      size: 0.5,
+      size: 0.3,
     });
 
     // Particles
@@ -203,6 +225,13 @@
       z = (Math.random() * 800) - 400;
 
       particleGeometry.vertices.push(new THREE.Vector3(x, y, z));
+      if (typeof particlesPool[i % pointGeometry.vertices.length] === 'undefined') {
+        particlesPool[i % pointGeometry.vertices.length] = [];
+      }
+
+      particlesPool[i % pointGeometry.vertices.length].push({
+        speed: Math.random() * 0.1,
+      });
     }
 
     // Create meshes and solids
@@ -375,7 +404,7 @@
         // First pass, position labels
         for (i = 0; i < labelSprites.length; i++) {
           vertex = vertices[i + 1].clone();
-          scaledVertex = new THREE.Vector3(vertex.x * 1.2, vertex.y * 1.2, vertex.z * 1.2);
+          scaledVertex = (new THREE.Vector3(vertex.x, vertex.y, vertex.z)).multiplyScalar(1.2);
 
           scaledVertex.applyMatrix4(pointPyramidMesh.matrix);
 
@@ -383,8 +412,6 @@
           labelSprites[i].position.set(scaledVertex.x, scaledVertex.y, scaledVertex.z);
           if (labelSprites[i].material.opacity < 1) labelSprites[i].material.opacity += 0.1;
         }
-
-        const acc = [];
 
         // Second pass, position particles
         for (i = 0; i < vertices.length; i++) {
@@ -394,26 +421,72 @@
           let j;
           for (j = 0; j < particlesCount; j++) {
             const k = i * particlesCount + j;
-            acc.push(k);
             const particleVertex = particleGeometry.vertices[k].clone();
 
-            if (particleVertex.distanceTo(vertex) < 0.2) key = 'particles';
-
+            // Shift start position of particles toward vertices with "weight"
             particleGeometry.vertices[k] = new THREE.Vector3(
               (particleVertex.x * 4 + vertex.x) * 0.2,
               (particleVertex.y * 4 + vertex.y) * 0.2,
               (particleVertex.z * 4 + vertex.z) * 0.2,
             );
+
+            if (particleVertex.distanceTo(vertex) < 0.2) {
+              key = 'toParticles';
+            }
+            // particlesPool[i][j].startPosition = particleGeometry.vertices[k].clone();
           }
         }
-        acc.sort();
+        particleGeometry.verticesNeedUpdate = true;
+        break;
+      case 'toParticles':
+        for (i = 0; i < vertices.length; i++) {
+          const connections = [...topologyGraph[i]];
+          // const poolSize = particlesCount / connections.length;
+          // console.log(poolSize);
+
+          let j;
+          for (j = 0; j < particlesCount; j++) {
+            const startPosition = particleGeometry.vertices[i * particlesCount + j];
+            particlesPool[i][j].position = startPosition.clone();
+            particlesPool[i][j].startPosition = startPosition.clone();
+            particlesPool[i][j].endPosition = vertices[connections[j % connections.length]].clone().applyMatrix4(pointPyramidMesh.matrix);
+          }
+        }
+
+        key = 'swapParticles';
+        break;
+      case 'swapParticles':
+        for (i = 0; i < vertices.length; i++) {
+
+          let j;
+          for (j = 0; j < particlesCount; j++) {
+            const k = i * particlesCount + j;
+            const particle = Object.assign({}, particlesPool[i][j]);
+
+            if (particle.position.distanceTo(particle.endPosition) >= 0.2) {
+              let deltaV = particle.endPosition.clone();
+              deltaV.sub( particle.startPosition );
+              deltaV.normalize();
+              deltaV.multiplyScalar(particle.speed);
+              particlesPool[i][j].position.add(deltaV);
+            }
+            else {
+              const tmpVector = particle.endPosition.clone();
+              particlesPool[i][j].endPosition = particle.startPosition.clone();
+              particlesPool[i][j].startPosition = tmpVector.clone();
+            }
+
+            // particle.position.applyMatrix4(pointPyramidMesh.matrix);
+            particleGeometry.vertices[k] = particle.position.clone();
+          }
+        }
         particleGeometry.verticesNeedUpdate = true;
         break;
       default:
         break;
     }
 
-    console.log(key);
+    // console.log(key);
 
     if (scramblerEnabled) {
       let i = 0;
@@ -424,7 +497,7 @@
         // 0.046, 0.047, 0.050, 0.051, 0.053, 0.054, 0.055, 0.056, 0.058, 0.059
       }
     }
-    chromaticAberrationPass.uniforms["time"].value = Math.cos(time * 10);
+    chromaticAberrationPass.uniforms['time'].value = Math.cos(time * 10);
     light.position.copy(camera.position);
     controls.update();
     requestAnimationFrame(animate);
@@ -443,7 +516,7 @@
 
     chromaticAberrationProgram = {
       uniforms: {
-        tDiffuse: { type: "t", value: null },
+        tDiffuse: { type: 't', value: null },
         resolution: {
           value: new THREE.Vector2(
             window.innerWidth * window.devicePixelRatio,
@@ -480,14 +553,15 @@
   // Handle resize
   function onResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
 
-    chromaticAberrationPass.uniforms["resolution"].value = new THREE.Vector2(
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    chromaticAberrationPass.uniforms['resolution'].value = new THREE.Vector2(
       window.innerWidth * window.devicePixelRatio,
       window.innerHeight * window.devicePixelRatio
     );
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.reset();
   }
 
   function mouseIntersects() {
