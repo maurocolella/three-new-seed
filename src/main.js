@@ -1,5 +1,3 @@
-'use strict';
-
 (function () {
   // Script globals
   const
