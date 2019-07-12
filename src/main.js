@@ -1,6 +1,13 @@
 (function () {
   // Config
-  const { payload, fontStyle, backgroundImage } = threeSeedConfig;
+  const {
+    payload,
+    fontStyle,
+    backgroundImage,
+    color,
+    bloomActive,
+    shape,
+  } = threeSeedConfig;
 
   // Script globals
   const
@@ -18,7 +25,7 @@
     scene,
     camera,
     controls,
-    cubeMesh,
+    shapeMesh,
     pyramidMesh,
     wirePyramidMesh,
     pointPyramidMesh,
@@ -163,7 +170,32 @@
 
   // Initialize geometry
   function initGeometry() {
-    const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
+    let shapeGeometry;
+
+    switch(shape) {
+      case 'knot':
+        shapeGeometry = new THREE.TorusKnotGeometry(5, 1.5, 32, 64, 2, 3);
+        break;
+      case 'torus':
+        shapeGeometry = new THREE.TorusGeometry(5, 2, 6, 24);
+        break;
+      case 'pyramid':
+        shapeGeometry = new THREE.TetrahedronGeometry(10);
+        break;
+      case 'sphere':
+        shapeGeometry = new THREE.SphereGeometry(5, 12, 12);
+        break;
+      case 'cylinder':
+        shapeGeometry = new THREE.CylinderGeometry(5, 5, 10, 12);
+        break;
+      case 'cone':
+        shapeGeometry = new THREE.ConeGeometry(5, 10, 12);
+        break;
+      case 'cube':
+      default:
+        shapeGeometry = new THREE.BoxGeometry(10, 10, 10);
+        break;
+    }
 
     const pyramidGeometry = new THREE.ConeGeometry(4, 2, payload.length);
     const edges = new THREE.EdgesGeometry(pyramidGeometry);
@@ -192,7 +224,7 @@
 
     // Solid material
     const material = new THREE.MeshLambertMaterial({
-      color: 0x222225 // 0x555558,
+      color: color || 0x222225,
     });
     material.onBeforeCompile = augmentShader;
 
@@ -236,15 +268,15 @@
     }
 
     // Create meshes and solids
-    cubeMesh = new THREE.Mesh(cubeGeometry, material);
+    shapeMesh = new THREE.Mesh(shapeGeometry, material);
     pyramidMesh = new THREE.Mesh(pyramidGeometry, material);
     wirePyramidMesh = new THREE.Mesh(edges, lineMaterial);
     pointPyramidMesh = new THREE.Points(pointGeometry, pointMaterial);
     pointCloud = new THREE.Points(particleGeometry, particleMaterial);
     pointCloud.visible = false;
 
-    cubeMesh.rotation.set(0.6, -0.3, 0);
-    cubeMesh.name = 'cube';
+    shapeMesh.rotation.set(0.6, -0.3, 0);
+    shapeMesh.name = 'cube';
 
     pyramidMesh.visible = false;
 
@@ -255,7 +287,7 @@
     pointPyramidMesh.visible = false;
 
     // Append to scene
-    scene.add(cubeMesh);
+    scene.add(shapeMesh);
     scene.add(pyramidMesh);
     scene.add(wirePyramidMesh);
     scene.add(pointPyramidMesh);
@@ -296,7 +328,7 @@
         // Animate cube
         (new TimelineLite())
           .to(
-            cubeMesh.rotation,
+            shapeMesh.rotation,
             2,
             {
               x: Math.PI * 5,
@@ -305,7 +337,7 @@
             ease: Power4.easeIn */
             }
           ).to(
-            cubeMesh.scale,
+            shapeMesh.scale,
             1,
             {
               x: 0.4,
@@ -369,7 +401,7 @@
             pyramidMesh.visible = true;
             wirePyramidMesh.visible = true;
             pointPyramidMesh.visible = true;
-            cubeMesh.visible = false;
+            shapeMesh.visible = false;
             controls.enabled = true;
 
             let i = 0;
@@ -543,7 +575,9 @@
     bloomPass.radius = 0;
 
     composer.addPass(renderPass);
-    composer.addPass(bloomPass);
+    if (bloomActive) {
+      composer.addPass(bloomPass);
+    }
     composer.addPass(chromaticAberrationPass);
     chromaticAberrationPass.renderToScreen = true;
   }
