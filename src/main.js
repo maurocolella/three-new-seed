@@ -89,7 +89,7 @@
     controls.maxAzimuthAngle = Math.PI / 2; // radians
 
     // Remove default OrbitControls event listeners
-    controls.dispose();
+    // controls.dispose();
     controls.update();
 
     // picking
@@ -599,23 +599,29 @@
   }
 
   function mouseIntersects() {
-    const intersects = raycaster.intersectObjects(scene.children, false);
     raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children, false);
 
     return intersects;
+  }
+
+  function handlePicking(event) {
+    if (controls.enabled &&! event.touches) {
+      controls.handleMouseMoveRotate(event);
+    }
+
+    const pointerPosition = event.touches && event.touches.length ? event.touches[0] : event;
+
+    // Object picking
+    mouse.x = (pointerPosition.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (pointerPosition.clientY / window.innerHeight) * 2 + 1;
   }
 
   // Handle mouse movement/picking
   function onMouseMove(event) {
     event.preventDefault();
-    if (controls.enabled) {
-      controls.handleMouseMoveRotate(event);
-    }
-
-    // Object picking
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
+    console.log('mousemove');
+    handlePicking(event);
     const objectsHovered = mouseIntersects();
 
     // Indicate an object is picked
@@ -638,6 +644,8 @@
 
   function onMouseDown(event) {
     event.preventDefault();
+    console.log('mousedown', mouse);
+    handlePicking(event);
     const objectsPicked = mouseIntersects();
 
     if (objectsPicked.length > 0) {
@@ -658,6 +666,11 @@
     }
   }
 
+  function onTouchEnd(event) {
+    mouse.x = -100000;
+    mouse.y = -100000;
+  }
+
   function onKeyUp(event) {
     if (event.keyCode == 32) {
       //your code
@@ -669,6 +682,10 @@
   window.addEventListener('resize', onResize, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('mousedown', onMouseDown, false);
+
+  document.addEventListener('touchmove', onMouseMove, false);
+  document.addEventListener('touchstart', onMouseDown, false);
+  document.addEventListener('touchend', onTouchEnd, false);
   document.addEventListener('keyup', onKeyUp, false);
 
   init();

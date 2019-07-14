@@ -763,7 +763,7 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 				if ( scope.enableRotate === false ) return;
 
-				handleMouseMoveRotate( event );
+				scope.handleMouseMoveRotate( event );
 
 				break;
 
