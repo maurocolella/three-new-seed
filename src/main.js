@@ -586,14 +586,17 @@
 
   // Handle resize
   function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
+    controls.update();
 
     chromaticAberrationPass.uniforms['resolution'].value = new THREE.Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
+      width * window.devicePixelRatio,
+      height * window.devicePixelRatio
     );
     composer.reset();
   }
@@ -680,6 +683,7 @@
 
   // Register listeners
   window.addEventListener('resize', onResize, false);
+  window.addEventListener('orientationchange', onResize, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('mousedown', onMouseDown, false);
 
