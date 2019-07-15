@@ -1,4 +1,13 @@
 (function () {
+  function isGLAvailable() {
+    try {
+      const canvas = document.createElement( 'canvas' );
+      return !! ( window.WebGLRenderingContext && ( canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' ) ) );
+    } catch ( e ) {
+      return false;
+    }
+  }
+
   // Config
   const {
     payload,
@@ -52,6 +61,48 @@
   }
 
   // ********************** Initialization ****************
+  function fallback() {
+    const container = document.createElement('div');
+    const list = document.createElement('ul');
+
+    payload.forEach((entry) => {
+      const listItem = document.createElement('li');
+      const anchor = document.createElement('a');
+      const heading = document.createElement('h2');
+      const subheading = document.createElement('h3');
+
+      heading.innerText = entry.title;
+      subheading.innerText = entry.subtitle;
+      anchor.setAttribute('href', entry.link);
+
+      anchor.appendChild(heading);
+      anchor.appendChild(subheading);
+
+      anchor.style.color = fontStyle && fontStyle.color;
+      anchor.style.fontFamily = fontStyle && fontStyle.font;
+      anchor.style.display = 'block';
+
+      listItem.appendChild(anchor);
+      list.appendChild(listItem);
+    });
+
+    document.body.appendChild(list);
+    document.body.style.backgroundImage = `url(${backgroundImage})`;
+    document.body.style.backgroundSize = 'cover';
+  }
+
+  function registerEvents() {
+    // Register listeners
+    window.addEventListener('resize', onResize, false);
+    window.addEventListener('orientationchange', onResize, false);
+    document.addEventListener('mousemove', onMouseMove, false);
+    document.addEventListener('mousedown', onMouseDown, false);
+
+    document.addEventListener('touchmove', onMouseMove, false);
+    document.addEventListener('touchstart', onMouseDown, false);
+    document.addEventListener('touchend', onTouchEnd, false);
+    document.addEventListener('keyup', onKeyUp, false);
+  }
 
   // Initialize pipeline
   function init() {
@@ -109,6 +160,8 @@
     light = new THREE.DirectionalLight(0x909099, 1.0);
     light.position.copy(camera.position);
     scene.add(light);
+
+    registerEvents();
 
     shaderRefs = [];
     initGeometry();
@@ -623,7 +676,6 @@
   // Handle mouse movement/picking
   function onMouseMove(event) {
     event.preventDefault();
-    console.log('mousemove');
     handlePicking(event);
     const objectsHovered = mouseIntersects();
 
@@ -647,7 +699,6 @@
 
   function onMouseDown(event) {
     event.preventDefault();
-    console.log('mousedown', mouse);
     handlePicking(event);
     const objectsPicked = mouseIntersects();
 
@@ -681,17 +732,10 @@
     }
   }
 
-  // Register listeners
-  window.addEventListener('resize', onResize, false);
-  window.addEventListener('orientationchange', onResize, false);
-  document.addEventListener('mousemove', onMouseMove, false);
-  document.addEventListener('mousedown', onMouseDown, false);
-
-  document.addEventListener('touchmove', onMouseMove, false);
-  document.addEventListener('touchstart', onMouseDown, false);
-  document.addEventListener('touchend', onTouchEnd, false);
-  document.addEventListener('keyup', onKeyUp, false);
-
-  init();
-  animate();
+  if (isGLAvailable()) {
+    init();
+    animate();
+  } else {
+    fallback();
+  }
 })();
